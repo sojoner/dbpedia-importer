@@ -7,5 +7,6 @@
   :dependencies [[org.clojure/clojure "1.5.1"]
                             [org.neo4j/neo4j "2.1.0-M01"]
                             [org.clojure/tools.logging "0.2.6"]
-                            [net.sourceforge.owlapi/owlapi-turtle "3.3"]]
+                            [net.sourceforge.owlapi/owlapi-turtle "3.3"]
+                            [clojurewerkz/neocons "2.0.1"]]
   :main dbpedia-importer.core)
