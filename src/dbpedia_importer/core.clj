@@ -40,7 +40,8 @@
  
 ;; BATCH UPSERT METHODS
  
-(def id-map (atom (transient {})))
+;; (def id-map (atom (transient {})))
+(def id-map (atom {}))
  
 (defn insert-resource-node [res]
   (if-let [id (get @id-map res)]
@@ -49,10 +50,11 @@
     ; Otherwise, add the node for the node, and remember its id for later.
     (let [a_node (nn/create {"resource" res})
           id (:id a_node)]
-      (swap! id-map #(assoc! % res id))
+      (swap! id-map assoc res id)
       id)))
 
 (defn insert-tuple [tuple]
+  (Thread/sleep 10)
   ; Get the resource and label names out of the tuple.
   (let [[resource-1 label resource-2 & _ ] tuple
         ; Upsert the resource nodes.
@@ -62,19 +64,12 @@
      (nrl/create node-1 node-2 :rel_type {:source label})
     ))
 
-(defn connect []
-  (nr/connect! "http://localhost:7474/db/data/"))
+(defn connect [url]
+  (nr/connect! url))
 
-(defn -main [graph-path & files]
-  (connect)  
+(defn -main [url & files]
+  (connect url)  
   (doseq [file files]
     (println (str "Loading file: " file))
-    (let [c (atom 0)]
-      (doseq [tuple (parse-file file)]
-        (if (= (mod @c 10000) 0)
-          (print (str file ": " @c)))
-        (swap! c inc)
-        (insert-tuple tuple)))
-    (println "Loading complete.")
-    (println "Shutting down.")
-    (println "Shutdown complete!")))
+     (do (doall (pmap insert-tuple (parse-file file)))))
+    (println "complete!"))
