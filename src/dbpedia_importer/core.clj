@@ -42,7 +42,7 @@
  
 (def id-map (atom (transient {})))
  
-(defn insert-resource-node! [res]
+(defn insert-resource-node [res]
   (if-let [id (get @id-map res)]
     ; If the resource has aleady been added, just return the id.
     id
@@ -52,12 +52,12 @@
       (swap! id-map #(assoc! % res id))
       id)))
 
-(defn insert-tuple! [tuple]
+(defn insert-tuple [tuple]
   ; Get the resource and label names out of the tuple.
   (let [[resource-1 label resource-2 & _ ] tuple
         ; Upsert the resource nodes.
-        node-1 (insert-resource-node! resource-1)
-        node-2 (insert-resource-node! resource-2)]
+        node-1 (insert-resource-node resource-1)
+        node-2 (insert-resource-node resource-2)]
     ; Connect the nodes with an edge. 
      (nrl/create node-1 node-2 :rel_type {:source label})
     ))
@@ -68,13 +68,13 @@
 (defn -main [graph-path & files]
   (connect)  
   (doseq [file files]
-    (log :debug (str "Loading file: " file))
+    (println (str "Loading file: " file))
     (let [c (atom 0)]
       (doseq [tuple (parse-file file)]
         (if (= (mod @c 10000) 0)
-          (log :debug (str file ": " @c)))
+          (print (str file ": " @c)))
         (swap! c inc)
-        (insert-tuple! tuple)))
-    (log :debug "Loading complete.")
-    (log :debug "Shutting down.")
-    (log :debug "Shutdown complete!")))
+        (insert-tuple tuple)))
+    (println "Loading complete.")
+    (println "Shutting down.")
+    (println "Shutdown complete!")))
