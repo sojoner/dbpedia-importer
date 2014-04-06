@@ -1,17 +1,16 @@
 (ns dbpedia-importer.core
-  (:use [clojure.tools.logging :only [log]])
     (:require [clojure.java.io :as io]
               [clojurewerkz.neocons.rest :as nr]
               [clojurewerkz.neocons.rest.nodes :as nn]
               [clojurewerkz.neocons.rest.relationships :as nrl]
+              [clojurewerkz.neocons.rest.batch :as b]
+              [clojure.data.json :as json]
     )
-  (:import [uk.ac.manchester.cs.owl.owlapi.turtle.parser TurtleParser]
-           [org.neo4j.unsafe.batchinsert BatchInserters]
-           [org.neo4j.index.lucene.unsafe.batchinsert LuceneBatchInserterIndexProvider]
-           [org.neo4j.graphdb DynamicRelationshipType]))
+  (:import [uk.ac.manchester.cs.owl.owlapi.turtle.parser TurtleParser]))
  
+
 ;; PARSING METHODS
- 
+
 (defn get-next-tuple
   [parser]
   (let [last-item (atom nil)
@@ -40,30 +39,41 @@
  
 ;; BATCH UPSERT METHODS
  
-(def id-map (atom (transient {})))
+(def id-map (atom {}))
+(def id-counter(atom 0))
+(def batch (atom '()))
  
-(defn insert-resource-node [res]
+(defn check-and-get-id [res]
   (if-let [id (get @id-map res)]
     ; If the resource has aleady been added, just return the id.
     id
     ; Otherwise, add the node for the node, and remember its id for later.
-    (let [a_node (nn/create {"resource" res})
-          id (:id a_node)]
-      (swap! id-map #(assoc! % res id))
+    (let [id @id-counter]
+      (swap! id-map assoc res id)
+       (swap! id-counter inc)
       id)))
 
-(defn insert-tuple [tuple]
+(defn create-batch-entry [id1 resource-1 id2 resource-2 label]
+    (let [ node1 {:method "POST" :to  "/node" :body   {:resource resource-1} :id  id1}
+             node2 {:method "POST" :to  "/node" :body   {:resource resource-2} :id  id2}
+             rel {:method "POST" :to  (str "{" id1 "}/relationships") :body   {:to  (str "{" id2 "}") :data {} :type label} :id  (check-and-get-id label)}
+            ]
+       (list node1 node2 rel)))
+
+(defn prepare-batch-entry [tuple]
   ; Get the resource and label names out of the tuple.
   (let [[resource-1 label resource-2 & _ ] tuple
         ; Upsert the resource nodes.
-        node-1 (insert-resource-node resource-1)
-        node-2 (insert-resource-node resource-2)]
-    ; Connect the nodes with an edge. 
-     (nrl/create node-1 node-2 :rel_type {:source label})
-    ))
+        node-id-1 (check-and-get-id resource-1)
+        node-id-2 (check-and-get-id resource-2)]
+     (create-batch-entry node-id-1 resource-1 node-id-2 resource-2 label)))
 
 (defn connect []
   (nr/connect! "http://localhost:7474/db/data/"))
+
+(defn commit-batch []
+  (doall (b/perform @batch))
+  (swap! batch empty))
 
 (defn -main [graph-path & files]
   (connect)  
@@ -71,10 +81,10 @@
     (println (str "Loading file: " file))
     (let [c (atom 0)]
       (doseq [tuple (parse-file file)]
-        (if (= (mod @c 10000) 0)
-          (print (str file ": " @c)))
+        (if (= (mod @c 1000) 0)
+          (commit-batch))
         (swap! c inc)
-        (insert-tuple tuple)))
+        (swap! batch concat  (prepare-batch-entry tuple))))
     (println "Loading complete.")
     (println "Shutting down.")
     (println "Shutdown complete!")))
