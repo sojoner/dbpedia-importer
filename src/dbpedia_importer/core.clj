@@ -5,6 +5,7 @@
               [clojurewerkz.neocons.rest.relationships :as nrl]
               [clojurewerkz.neocons.rest.batch :as b]
               [clojure.data.json :as json]
+               [clojurewerkz.neocons.rest.records :as records]
     )
   (:import [uk.ac.manchester.cs.owl.owlapi.turtle.parser TurtleParser]))
  
@@ -28,62 +29,82 @@
 (defn seq-of-parser
   [parser]
   (if-let [next-tuple (get-next-tuple parser)]
-    (lazy-cat [next-tuple]
-              (seq-of-parser parser))))
+    (lazy-cat [next-tuple] 
+                    (seq-of-parser parser))))
  
 (defn parse-file
   [filename]
   (seq-of-parser
     (TurtleParser.
       (io/input-stream filename))))
- 
+
+
 ;; BATCH UPSERT METHODS
 (def id-map (atom {}))
 (def id-counter(atom 0))
 (def batch (atom '()))
  
+(defn get-to-string [resource-1]
+    (if-let [ids (get @id-map resource-1)]
+       (if (> (:neo4id  ids) 0) (str "node/" (:neo4id  ids) "/relationships")  (str "{" (:id ids) "}/relationships"))))
+
+(defn get-to-body-string [resource-2]
+     (if-let [ids (get @id-map resource-2)]
+       (if (> (:neo4id  ids) 0) (str (:neo4id  ids))  (str "{" (:id ids) "}"))))
+
+ (defn get-relation-statement [resource-1 label resource-2]
+      (let [to-string (get-to-string resource-1)
+              to-body-string (get-to-body-string resource-2)]
+       {:method "POST" :to to-string  :body   {:to  to-body-string :data {} :type label} :id @id-counter}))
+
 (defn check-and-get-id [res]
-  (if-let [id (get @id-map res)]
+  (if-let [ids (get @id-map res)]
     ; If the resource has aleady been added, just return the id.
-    id
+    (if (> (:neo4id  ids) 0) (:neo4id  ids) (:id ids))
     ; Otherwise, add the node for the node, and remember its id for later.
     (let [id @id-counter]
-      (swap! id-map assoc res id)
+       (swap! id-map assoc res {:id id :neo4id -1})
        (swap! id-counter inc)
-      id)))
-
-(defn create-batch-entry [id1 resource-1 id2 resource-2 label]
-    (let [ node1 {:method "POST" :to  "/node" :body   {:resource resource-1} :id  id1}
-             node2 {:method "POST" :to  "/node" :body   {:resource resource-2} :id  id2}
-             rel {:method "POST" :to  (str "{" id1 "}/relationships") :body   {:to  (str "{" id2 "}") :data {} :type label} :id  (check-and-get-id label)}
-            ]
-       (list node1 node2 rel)))
+       (swap! batch conj {:method "POST" :to  "/node" :body   {:resource res} :id  id})
+      id) ; Return the counter id
+  )
+)
 
 (defn prepare-batch-entry [tuple]
   ; Get the resource and label names out of the tuple.
-  (let [[resource-1 label resource-2 & _ ] tuple
-        ; Upsert the resource nodes.
-        node-id-1 (check-and-get-id resource-1)
-        node-id-2 (check-and-get-id resource-2)]
-     (create-batch-entry node-id-1 resource-1 node-id-2 resource-2 label)))
+  (let [[resource-1 label resource-2 & _ ] tuple]
+        (check-and-get-id resource-2)
+        (check-and-get-id resource-1)
+        (println (get-relation-statement resource-1 label resource-2))
+        (swap! batch conj (get-relation-statement resource-1 label resource-2))
+        (swap! id-counter inc)
+        ))
 
-(defn connect [url]
-  (nr/connect! url))
+(defn update-resource-ids [lazyresponse]
+  (let [datamap (:data lazyresponse)]
+         (if (contains? datamap :resource)
+            (let [ids (get @id-map (:resource datamap))]
+              (swap! id-map assoc (:resource datamap) {:id (:id ids) :neo4id (:id lazyresponse)})))))
+
 
 (defn commit-batch []
-  (doall (b/perform @batch))
+  ;(println (json/write-str @batch))
+  (doseq [lazyresponse (b/perform @batch)]
+               (update-resource-ids lazyresponse))
   (swap! batch empty))
 
+
 (defn -main [url & files]
-  (connect url)  
+  (nr/connect! url)
   (doseq [file files]
     (println (str "Loading file: " file))
     (let [c (atom 0)]
       (doseq [tuple (parse-file file)]
-        (if (= (mod @c 1000) 0)
+        (if (= (mod @c 10) 0)
           (commit-batch))
         (swap! c inc)
-        (swap! batch concat  (prepare-batch-entry tuple))))
-    (println "Loading complete.")
-    (println "Shutting down.")
-    (println "Shutdown complete!")))
+        (prepare-batch-entry tuple)
+        )
+      )
+    )
+  )
