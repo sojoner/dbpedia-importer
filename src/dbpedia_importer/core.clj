@@ -42,7 +42,7 @@
 ;; BATCH UPSERT METHODS
 (def id-map (atom {}))
 (def id-counter(atom 0))
-(def batch (atom '()))
+(def batch (atom []))
  
 (defn get-to-string [resource-1]
     (if-let [ids (get @id-map resource-1)]
@@ -75,7 +75,6 @@
   (let [[resource-1 label resource-2 & _ ] tuple]
         (check-and-get-id resource-2)
         (check-and-get-id resource-1)
-        (println (get-relation-statement resource-1 label resource-2))
         (swap! batch conj (get-relation-statement resource-1 label resource-2))
         (swap! id-counter inc)
         ))
@@ -100,7 +99,7 @@
     (println (str "Loading file: " file))
     (let [c (atom 0)]
       (doseq [tuple (parse-file file)]
-        (if (= (mod @c 10) 0)
+        (if (= (mod @c 50000) 0)
           (commit-batch))
         (swap! c inc)
         (prepare-batch-entry tuple)
