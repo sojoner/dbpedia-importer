@@ -5,7 +5,8 @@
               [clojurewerkz.neocons.rest.relationships :as nrl]
               [clojurewerkz.neocons.rest.batch :as b]
               [clojure.data.json :as json]
-               [clojurewerkz.neocons.rest.records :as records]
+              [clojurewerkz.neocons.rest.records :as records]
+              [clojurewerkz.neocons.rest.labels :as nl]
     )
   (:import [uk.ac.manchester.cs.owl.owlapi.turtle.parser TurtleParser]))
  
@@ -66,6 +67,7 @@
        (swap! id-map assoc res {:id id :neo4id -1})
        (swap! id-counter inc)
        (swap! batch conj {:method "POST" :to  "/node" :body   {:resource res} :id  id})
+       (swap! batch conj {:method "POST" :to  (str "{" id "}/labels") :body   "resource"})
       id) ; Return the counter id
   )
 )
