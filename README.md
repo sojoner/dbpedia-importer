@@ -1,11 +1,11 @@
 dbpedia-importer
 ================
 
-A lein project to import a bunch of .ttl files from dbpedia into neo4j at once, using neo4J Batch REST api.
+A project  written in clojure to import a bunch of .ttl files from dbpedia into neo4j at once, using neo4J Batch REST api.
 
 ## Usage
 
-* <pre>lein deps</pre>
+* lein deps
 * Start neo4J
 * Open http://host:7474
 
@@ -15,11 +15,11 @@ Create neo4j Label index:
 
 Import One file:
 
-    <pre>lein run http://localhost:7474 /Users/BLA/Data/mappingbased_properties_en_uris_ca.ttl</pre>
+    lein run http://localhost:7474 /Users/BLA/Data/mappingbased_properties_en_uris_ca.ttl
 
 Import List of files (Recommended):
 
-    <pre>lein run http://localhost:7474/db/data/  /Users/whoRock/Data/dbpedia_de/dewiki-20140320-labels.ttl /Users/whoRock/Data/dbpedia_de/dewiki-20140320-skos-categories.ttl /Users/whoRock/Data/dbpedia_de/dewiki-20140320-article-categories.ttl /Users/whoRock/Data/dbpedia_de/dewiki-20140320-category-labels.ttl</pre>
+    lein run http://localhost:7474/db/data/  /Users/whoRock/Data/dbpedia_de/dewiki-20140320-labels.ttl /Users/whoRock/Data/dbpedia_de/dewiki-20140320-skos-categories.ttl /Users/whoRock/Data/dbpedia_de/dewiki-20140320-article-categories.ttl /Users/whoRock/Data/dbpedia_de/dewiki-20140320-category-labels.ttl
 
 ###Cypher to Try
 
