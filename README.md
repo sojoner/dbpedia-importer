@@ -1,7 +1,7 @@
 dbpedia-importer
 ================
 
-A lein project to import a bunch of .ttl files from dbpedia into neo4j at once. 
+A lein project to import a bunch of .ttl files from dbpedia into neo4j at once, using neo4J Batch REST api.
 
 ## Usage
 
@@ -19,7 +19,7 @@ Import One file:
 
 Import List of files (Recommended):
 
-    <pre>lein run http://localhost:7474/db/data/  /Users/thatRock/Data/dbpedia_de/dewiki-20140320-labels.ttl /Users/thatRock/Data/dbpedia_de/dewiki-20140320-skos-categories.ttl /Users/thatRock/Data/dbpedia_de/dewiki-20140320-article-categories.ttl /Users/thatRock/Data/dbpedia_de/dewiki-20140320-category-labels.ttl</pre>
+    <pre>lein run http://localhost:7474/db/data/  /Users/whoRock/Data/dbpedia_de/dewiki-20140320-labels.ttl /Users/whoRock/Data/dbpedia_de/dewiki-20140320-skos-categories.ttl /Users/whoRock/Data/dbpedia_de/dewiki-20140320-article-categories.ttl /Users/whoRock/Data/dbpedia_de/dewiki-20140320-category-labels.ttl</pre>
 
 ###Cypher to Try
 
