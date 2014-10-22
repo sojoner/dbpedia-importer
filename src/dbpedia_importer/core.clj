@@ -87,21 +87,22 @@
             (let [ids (get @id-map (:resource datamap))]
               (swap! id-map assoc (:resource datamap) {:id (:id ids) :neo4id (:id lazyresponse)})))))
 
+(def conn (nr/connect "http://localhost:7474/db/data/"))
 
 (defn commit-batch []
   ;(println (json/write-str @batch))
-  (doseq [lazyresponse (b/perform @batch)]
+  (doseq [lazyresponse (b/perform conn @batch)]
                (update-resource-ids lazyresponse))
   (swap! batch empty))
 
 
 (defn -main [url & files]
-  (nr/connect! url)
+  
   (doseq [file files]
     (println (str "Loading file: " file))
     (let [c (atom 0)]
       (doseq [tuple (parse-file file)]
-        (if (= (mod @c 50000) 0)
+        (if (= (mod @c 10) 0)
           (commit-batch))
         (swap! c inc)
         (prepare-batch-entry tuple)
